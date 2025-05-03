@@ -1,3 +1,8 @@
+/*
+ * Terabox Helpers - Copyright (c) 2025 Marco Trinastich
+ * Licensed under GNU GPL v3 - see LICENSE file for details
+ */
+
 // Terabox Folder File Counter
 // Usage: log into terabox web app, open browser developer tools and paste following script
 
