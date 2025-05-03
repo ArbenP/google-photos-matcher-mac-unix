@@ -1,3 +1,6 @@
+# Google Photos Matcher Mac/Unix - Copyright (c) 2025 Marco Trinastich
+# Licensed under GNU GPL v3 - see LICENSE file for details
+
 import os
 import glob
 import time

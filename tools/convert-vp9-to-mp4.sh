@@ -1,3 +1,6 @@
+# Convert VP9 to MP4 Tool - Copyright (c) 2025 Marco Trinastich
+# Licensed under GNU GPL v3 - see LICENSE file for details
+
 #!/bin/bash
 # Convert vp9 mov to quicktime compatible h264 mp4
 
