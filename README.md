@@ -8,19 +8,19 @@ Designed as a cost-free alternative to [MetadataFixer](https://metadatafixer.com
 
 1. [Project Overview](#project-overview)
 2. [Features](#features)
-3. [Screenshots](#screenshots)
-4. [Usage](#usage)
+3. [Improvements in This Fork](#improvements-in-this-fork)
+4. [Screenshots](#screenshots)
+5. [Usage](#usage)
    - [Setup](#setup)
    - [How to Run](#how-to-run)
    - [Parameters](#parameters)
-5. [FAQs](#faqs)
+6. [FAQs](#faqs)
    - [Why is there another folder called _EditedRaw_?](#why-is-there-another-folder-called-editedraw)
    - [Why do some images/videos stay unmatched?](#why-do-some-imagesvideos-stay-unmatched)
-6. [Extras](#extras)
+7. [Extras](#extras)
    - [Debugging](#debugging)
    - [Bonus Tools](#bonus-tools)
-7. [Acknowledgments](#acknowledgments)
-8. [Support](#support)
+8. [Acknowledgments](#acknowledgments)
 9. [License](#license)
 
 ## Project Overview
@@ -32,9 +32,21 @@ This project is a fork of [GooglePhotosMatcher](https://github.com/anderbggo/Goo
 ## Features
 
 - **Metadata Matching:** Matches metadata (date, GPS coordinates) from JSON files to images/live photos/videos.
+- **Extended Format Support:** Full support for JPG, HEIC, PNG, GIF, MP4, and MOV files.
+- **Video Date Support:** Sets creation and modification dates on video files (MP4/MOV).
 - **Edited/Original Support:** Supports edited and original versions of media files.
 - **Cross-Platform:** Compatible with Mac and Unix systems.
 - **Free & Open-Source:** Completely free and open-source.
+
+## Improvements in This Fork
+
+This fork includes several enhancements over the original:
+
+- **HEIC/PNG/GIF Support**: Added exiftool-based metadata writing for formats not supported by piexif
+- **Video Timestamps**: Videos now get proper CreateDate and ModifyDate metadata (not just GPS)
+- **Better File Handling**: Automatically skips macOS `._` metadata files
+- **Flexible JSON Naming**: Supports both `.suppl.json` and `.supplemental-metadata.json` naming patterns from Google Takeout
+- **Robust GPS Handling**: Smart validation to avoid writing empty GPS coordinates (0,0,0)
 
 ## Screenshots
 
@@ -254,16 +266,7 @@ Additional tools are available in the `tools` folder:
 - **[mtmarco87](mailto:mt.marco87@gmail.com)** - Author of this project.
 - **anderbggo** - Author of the original Google Photos Matcher.
 - **Freepik** - Icon creator.
-
-## Support
-
-If you find this project useful, consider supporting its development:
-
-- ⭐ Star the repository to show your appreciation.
-- 💬 Share feedback or suggestions by opening an issue.
-- ☕ [Buy me a coffee](https://buymeacoffee.com/mtmarco87) to support future updates and improvements.
-- 🔵 BTC Address: `bc1qzy6e99pkeq00rsx8jptx93jv56s9ak2lz32e2d`
-- 🟣 ETH Address: `0x38cf74ED056fF994342941372F8ffC5C45E6cF21`
+- **[ArbenP](https://github.com/ArbenP)** - Contributor - Added HEIC/PNG/GIF support, video timestamps, and improved file handling.
 
 ## License
 
