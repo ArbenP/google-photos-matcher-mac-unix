@@ -6,12 +6,15 @@ import json
 from PIL import Image
 import sys
 
-piexifCodecs = [k.casefold() for k in ['TIF', 'TIFF', 'JPEG', 'JPG']]
-piexifCodecsToConvert = [k.casefold() for k in ['TIF', 'TIFF']]
-piexifCodecsToRename = [k.casefold() for k in ['JPEG']]
-videoCodecs = [k.casefold() for k in ['MP4', 'MOV']]
-    
-def process(browserPath, editedW, convertAll, convertIfNeeded):    
+piexifCodecs = [k.casefold() for k in ["TIF", "TIFF", "JPEG", "JPG"]]
+piexifCodecsToConvert = [k.casefold() for k in ["TIF", "TIFF"]]
+piexifCodecsToRename = [k.casefold() for k in ["JPEG"]]
+videoCodecs = [k.casefold() for k in ["MP4", "MOV"]]
+# HEIC and PNG need exiftool instead of piexif
+exiftoolImageCodecs = [k.casefold() for k in ["HEIC", "PNG", "GIF"]]
+
+
+def process(browserPath, editedW, convertAll, convertIfNeeded):
     mediaMoved = []  # array with names of all the media already matched
     path = browserPath  # source path
     fixedMediaPath = path + "/MatchedMedia"  # destination path
@@ -23,27 +26,36 @@ def process(browserPath, editedW, convertAll, convertIfNeeded):
     convertIfNeeded = convertIfNeeded or True
 
     try:
-        obj = list(os.scandir(path))  #Convert iterator into a list to sort it
-        obj.sort(key=lambda s: len(s.name)) #Sort by length to avoid name(1).jpg be processed before name.jpg
+        obj = list(os.scandir(path))  # Convert iterator into a list to sort it
+        obj.sort(
+            key=lambda s: len(s.name)
+        )  # Sort by length to avoid name(1).jpg be processed before name.jpg
         createFolders(fixedMediaPath, nonEditedMediaPath)
     except Exception as e:
         print("Error: Choose a valid directory: " + path)
         return
 
     for entry in obj:
-        if entry.is_file() and entry.name.endswith(".json"):  # Check if file is a JSON
+        # Skip macOS metadata files and check if file is a JSON
+        if (
+            entry.is_file()
+            and not entry.name.startswith("._")
+            and entry.name.endswith(".json")
+        ):
             with open(entry, encoding="utf8") as f:  # Load JSON into a var
                 data = json.load(f)
 
-            progress = round(obj.index(entry)/len(obj)*100, 2)
+            progress = round(obj.index(entry) / len(obj) * 100, 2)
             print(str(progress) + "%")
 
-            #SEARCH MEDIA ASSOCIATED TO JSON
+            # SEARCH MEDIA ASSOCIATED TO JSON
 
-            titleOriginal = data['title']  # Store metadata into vars
+            titleOriginal = data["title"]  # Store metadata into vars
 
             try:
-                result = searchMedia(path, titleOriginal, mediaMoved, nonEditedMediaPath, editedWord)
+                result = searchMedia(
+                    path, titleOriginal, mediaMoved, nonEditedMediaPath, editedWord
+                )
                 title = result[0]
                 movedTitle = result[1]
                 movedFilePath = result[2]
@@ -58,47 +70,56 @@ def process(browserPath, editedW, convertAll, convertIfNeeded):
                 print("Error: " + titleOriginal + " not found")
                 errorCounter += 1
                 continue
-            
+
             # TARGET MEDIA METADATA EDIT
-            filepath = updateFileMetadata(data, filepath, title, convertAll, convertIfNeeded)
+            filepath = updateFileMetadata(
+                data, filepath, title, convertAll, convertIfNeeded
+            )
             if filepath is None:
                 errorCounter += 1
                 continue
-            
-            #MOVE FILE AND DELETE JSON
+
+            # MOVE FILE AND DELETE JSON
             os.replace(filepath, fixedMediaPath + "/" + title)
             os.remove(path + "/" + entry.name)
             mediaMoved.append(title)
             successCounter += 1
-            
-            # ORIGINAL MEDIA METADATA EDIT (IF ANY) 
+
+            # ORIGINAL MEDIA METADATA EDIT (IF ANY)
             if not movedFilePath == "None" and not movedTitle == "None":
-                if updateFileMetadata(data, movedFilePath, movedTitle, convertAll, convertIfNeeded) is None:
+                if (
+                    updateFileMetadata(
+                        data, movedFilePath, movedTitle, convertAll, convertIfNeeded
+                    )
+                    is None
+                ):
                     errorCounter += 1
                 else:
                     successCounter += 1
                     mediaMoved.append(movedTitle)
-            
+
             # RELATED VIDEO METADATA EDIT (IN CASE OF HEIC)
-            filePathName = filepath.rsplit('.', 1)[0]
-            fileName = title.rsplit('.', 1)[0].casefold()
-            fileExtension = title.rsplit('.', 1)[1].casefold()        
+            filePathName = filepath.rsplit(".", 1)[0]
+            fileName = title.rsplit(".", 1)[0].casefold()
+            fileExtension = title.rsplit(".", 1)[1].casefold()
             if fileExtension == "heic".casefold():
                 # in case of HEIC (Apple iOS dynamic photos) update related MP4 metadata as well
                 mp4FilePath = filePathName + ".MP4"
                 mp4Title = fileName + ".MP4"
                 if os.path.exists(mp4FilePath):
-                    if updateFileMetadata(data, mp4FilePath, mp4Title, False, False) is None:
+                    if (
+                        updateFileMetadata(data, mp4FilePath, mp4Title, False, False)
+                        is None
+                    ):
                         errorCounter += 1
                     else:
                         os.replace(mp4FilePath, fixedMediaPath + "/" + mp4Title)
                         successCounter += 1
 
-            
     sucessMessage = " successes"
     errorMessage = " errors"
 
-    #UPDATE INTERFACE
+    # UPDATE INTERFACE
     if successCounter == 1:
         sucessMessage = " success"
 
@@ -106,17 +127,25 @@ def process(browserPath, editedW, convertAll, convertIfNeeded):
         errorMessage = " error"
 
     print(str(100) + "%")
-    print("\nMatching process finished with " + str(successCounter) + sucessMessage + " and " + str(errorCounter) + errorMessage + ".")
+    print(
+        "\nMatching process finished with "
+        + str(successCounter)
+        + sucessMessage
+        + " and "
+        + str(errorCounter)
+        + errorMessage
+        + "."
+    )
 
 
 def updateFileMetadata(data, filepath, title, convertAll, convertIfNeeded):
     # METADATA EDIT
-    timeStamp = int(data['photoTakenTime']['timestamp'])  # Get creation time
+    timeStamp = int(data["photoTakenTime"]["timestamp"])  # Get creation time
     print(filepath)
-    
-    filePathName = filepath.rsplit('.', 1)[0]
-    fileExtension = title.rsplit('.', 1)[1].casefold()        
-            
+
+    filePathName = filepath.rsplit(".", 1)[0]
+    fileExtension = title.rsplit(".", 1)[1].casefold()
+
     if fileExtension in piexifCodecs:  # If PIEXIF is supported (images only)
         # Convert/rename to jpg
         converted = False
@@ -125,34 +154,69 @@ def updateFileMetadata(data, filepath, title, convertAll, convertIfNeeded):
             converted = True
         elif fileExtension in piexifCodecsToRename:
             filepath = renameToJpg(filepath, filePathName, title)
-        
+
         if filepath is None:
             # Error converting/renaming to jpg
             return None
-        
-        error = set_Images_EXIF_Managed(filepath, data['geoData']['latitude'], data['geoData']['longitude'], data['geoData']['altitude'], timeStamp)
-        
+
+        error = set_Images_EXIF_Managed(
+            filepath,
+            data["geoData"]["latitude"],
+            data["geoData"]["longitude"],
+            data["geoData"]["altitude"],
+            timeStamp,
+        )
+
         # If failed for not a JPEG error, try to convert to JPG (if it wasn't done before)
-        if convertIfNeeded and not error is None and not converted and str(error).casefold() == "Given data isn't JPEG.".casefold():
+        if (
+            convertIfNeeded
+            and not error is None
+            and not converted
+            and str(error).casefold() == "Given data isn't JPEG.".casefold()
+        ):
             filepath = convertToJpg(filepath, filePathName, title)
             if filepath is None:
                 # Error converting/renaming to jpg
                 return None
-                
+
             # Retry set_EXIF with converted file
-            error = set_Images_EXIF_Managed(filepath, data['geoData']['latitude'], data['geoData']['longitude'], data['geoData']['altitude'], timeStamp)
-        
+            error = set_Images_EXIF_Managed(
+                filepath,
+                data["geoData"]["latitude"],
+                data["geoData"]["longitude"],
+                data["geoData"]["altitude"],
+                timeStamp,
+            )
+
         # Error handler
         if not error is None:
             print("Error: Inexistent EXIF data for " + filepath)
             print(str(error))
             return None
-    
-    if fileExtension in videoCodecs:  # If Video Codec is detected try to set gps exif with exiftool if needed
-        set_QuickTime_Video_EXIF(filepath, data['geoData']['latitude'], data['geoData']['longitude'], data['geoData']['altitude'])
-    
-    setFileTime(filepath, timeStamp) #File creation and modification time
-    
+
+    # Handle HEIC, PNG, GIF with exiftool
+    if fileExtension in exiftoolImageCodecs:
+        set_Image_EXIF_ExifTool(
+            filepath,
+            data["geoData"]["latitude"],
+            data["geoData"]["longitude"],
+            data["geoData"]["altitude"],
+            timeStamp,
+        )
+
+    if (
+        fileExtension in videoCodecs
+    ):  # If Video Codec is detected try to set gps exif with exiftool if needed
+        set_QuickTime_Video_EXIF(
+            filepath,
+            data["geoData"]["latitude"],
+            data["geoData"]["longitude"],
+            data["geoData"]["altitude"],
+            timeStamp,
+        )
+
+    setFileTime(filepath, timeStamp)  # File creation and modification time
+
     return filepath
 
 
@@ -160,7 +224,7 @@ def set_Images_EXIF_Managed(filepath, lat, lng, altitude, timeStamp):
     try:
         set_Images_EXIF(filepath, lat, lng, altitude, timeStamp)
         return None
-    except Exception as e:  # Error handler        
+    except Exception as e:  # Error handler
         return e
 
 
@@ -168,23 +232,24 @@ def convertToJpg(filepath, filePathName, title):
     try:
         # Open and convert img to jpg
         im = Image.open(filepath)
-        
+
         # Rename to jpg
         filepath = renameToJpg(filepath, filePathName, title)
         if filepath is None:
             # Error renaming to jpg
             return None
-        
+
         # Save img
-        im.save(filepath, format='jpeg', exif=im.getexif())
-        
-        #rgb_im = im.convert('RGB')
-        #rgb_im.save(filepath)
-        
+        im.save(filepath, format="jpeg", exif=im.getexif())
+
+        # rgb_im = im.convert('RGB')
+        # rgb_im.save(filepath)
+
         return filepath
     except ValueError as e:
         print("Error converting to JPG in " + title)
         return None
+
 
 def renameToJpg(filepath, filePathName, title):
     try:
@@ -199,6 +264,7 @@ def renameToJpg(filepath, filePathName, title):
 
 ## Application
 
+
 def showAppHeader(folder, editedW, convertAll, convertIfNeeded):
     # App header and parameter recap
     print("===================================")
@@ -207,9 +273,14 @@ def showAppHeader(folder, editedW, convertAll, convertIfNeeded):
     print("Parameters Recap:")
     print(f"  - Target Folder: {folder}")
     print(f"  - Edited Word: {editedW if editedW else 'Default (edited)'}")
-    print(f"  - Convert All to JPG: {convertAll if convertAll is not None else 'Default (False)'}")
-    print(f"  - Convert If Needed: {convertIfNeeded if convertIfNeeded is not None else 'Default (True)'}")
+    print(
+        f"  - Convert All to JPG: {convertAll if convertAll is not None else 'Default (False)'}"
+    )
+    print(
+        f"  - Convert If Needed: {convertIfNeeded if convertIfNeeded is not None else 'Default (True)'}"
+    )
     print("===================================\n")
+
 
 def showErrorAndLegend():
     # Show error and usage legend
@@ -217,16 +288,25 @@ def showErrorAndLegend():
     print(" Google Photos Matcher Mac/Unix ")
     print("===================================\n")
     print("Error: No folder specified.\n\n")
-    print("Usage: ./run.sh <target_folder> [edited_word] [convert_all_to_jpg] [convert_if_needed]\n")
+    print(
+        "Usage: ./run.sh <target_folder> [edited_word] [convert_all_to_jpg] [convert_if_needed]\n"
+    )
     print("Arguments:")
     print("  <target_folder>       Path to the folder containing JSON and media files.")
-    print("  [edited_word]         (Optional) Suffix for edited media. Default: 'edited'.")
-    print("  [convert_all_to_jpg]  (Optional) Convert all images to JPG. Default: False.")
-    print("  [convert_if_needed]   (Optional) Convert images to JPG if metadata editing fails. Default: True.\n\n")
+    print(
+        "  [edited_word]         (Optional) Suffix for edited media. Default: 'edited'."
+    )
+    print(
+        "  [convert_all_to_jpg]  (Optional) Convert all images to JPG. Default: False."
+    )
+    print(
+        "  [convert_if_needed]   (Optional) Convert images to JPG if metadata editing fails. Default: True.\n\n"
+    )
+
 
 def readArgs():
     folder = sys.argv[1]
-    
+
     editedW = sys.argv[2] if len(sys.argv) > 2 else None
 
     convertAll = None
@@ -235,23 +315,25 @@ def readArgs():
             convertAll = True
         elif sys.argv[3].casefold() == "false".casefold():
             convertAll = False
-    
+
     convertIfNeeded = None
     if len(sys.argv) > 4:
         if sys.argv[4].casefold() == "true".casefold():
             convertIfNeeded = True
         elif sys.argv[4].casefold() == "false".casefold():
             convertIfNeeded = False
-    
+
     return [folder, editedW, convertAll, convertIfNeeded]
+
 
 def appInit():
     if len(sys.argv) > 1:
-        [folder,editedW, convertAll, convertIfNeeded] = readArgs()
+        [folder, editedW, convertAll, convertIfNeeded] = readArgs()
         showAppHeader(folder, editedW, convertAll, convertIfNeeded)
         process(folder, editedW, convertAll, convertIfNeeded)
     else:
         showErrorAndLegend()
         return
-        
+
+
 appInit()
